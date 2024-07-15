@@ -2,14 +2,16 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'package:coast_audio/coast_audio.dart';
-import 'package:coast_audio/experimental.dart';
-import 'package:coast_audio/src/isolate/audio_isolate_worker_message.dart';
 
-Future<void> _audioIsolateRunner<TInitialMessage>(SendPort sendPort, {AudioIsolateWorker? worker}) async {
-  final messenger = AudioIsolateWorkerMessenger()..attach(sendPort);
-  sendPort.send(AudioIsolateLaunchedResponse(sendPort: messenger.hostToWorkerSendPort));
+part 'audio_isolate_host_message.dart';
+part 'audio_isolate_messenger.dart';
+part 'audio_isolate_worker_message.dart';
 
-  final req = (await messenger.message.firstWhere((r) => r is AudioIsolateRunRequest<TInitialMessage>)) as AudioIsolateRunRequest<dynamic>;
+Future<void> _audioIsolateRunner<TInitialMessage, THostReuqestPayload>(SendPort sendPort) async {
+  final messenger = AudioIsolateWorkerMessenger<THostReuqestPayload>().._attach(sendPort);
+  sendPort.send(AudioIsolateLaunchedResponse(sendPort: messenger._hostToWorkerSendPort));
+
+  final req = (await messenger._message.firstWhere((r) => r is AudioIsolateRunRequest<TInitialMessage>)) as AudioIsolateRunRequest<TInitialMessage>;
 
   var isShutdownRequested = false;
 
@@ -17,11 +19,11 @@ Future<void> _audioIsolateRunner<TInitialMessage>(SendPort sendPort, {AudioIsola
     try {
       await req.worker(req.initialMessage, messenger);
       if (!isShutdownRequested) {
-        messenger.onWorkerFinished();
+        messenger._onWorkerFinished();
         sendPort.send(const AudioIsolateShutdownResponse(reason: AudioIsolateShutdownReason.workerFinished));
       }
     } catch (e, s) {
-      messenger.hostToWorkerSendPort.send(AudioIsolateWorkerFailedResponse(0, e, s));
+      messenger._hostToWorkerSendPort.send(AudioIsolateWorkerFailedResponse(0, e, s));
       sendPort.send(
         AudioIsolateShutdownResponse(
           reason: AudioIsolateShutdownReason.exception,
@@ -34,8 +36,8 @@ Future<void> _audioIsolateRunner<TInitialMessage>(SendPort sendPort, {AudioIsola
 
   Future<void> gracefulStop() async {
     try {
-      final request = await messenger.message.firstWhere((r) => r is AudioIsolateShutdownRequest);
-      messenger.onShutdownRequested(request as AudioIsolateShutdownRequest);
+      final request = await messenger._message.firstWhere((r) => r is AudioIsolateShutdownRequest);
+      messenger._onShutdownRequested(request as AudioIsolateShutdownRequest);
       isShutdownRequested = true;
 
       sendPort.send(const AudioIsolateShutdownResponse(reason: AudioIsolateShutdownReason.hostRequested));
@@ -50,22 +52,20 @@ Future<void> _audioIsolateRunner<TInitialMessage>(SendPort sendPort, {AudioIsola
       runWorker(),
     ]);
   } finally {
-    messenger.close();
+    messenger._close();
     AudioResourceManager.disposeAll();
     Isolate.exit();
   }
 }
 
-typedef AudioIsolateWorker<TInitialMessage> = FutureOr<void> Function(TInitialMessage? initialMessage, AudioIsolateWorkerMessenger messenger);
-
-class AudioIsolate<TInitialMessage> {
+final class AudioIsolate<TInitialMessage, TWorkerRequestPayload> {
   AudioIsolate(this._worker) {
-    _messenger.message.listen(_messengerListener);
+    _messenger._message.listen(_messengerLifecycleListener);
   }
 
-  final AudioIsolateWorker<TInitialMessage> _worker;
+  final FutureOr<void> Function(TInitialMessage? initialMessage, AudioIsolateWorkerMessenger messenger) _worker;
 
-  var _messenger = AudioIsolateHostMessenger();
+  var _messenger = AudioIsolateHostMessenger<TWorkerRequestPayload>();
 
   _AudioIsolateSession<TInitialMessage>? _session;
 
@@ -78,7 +78,7 @@ class AudioIsolate<TInitialMessage> {
 
     final isolate = await Isolate.spawn(
       _audioIsolateRunner,
-      _messenger.workerToHostSendPort,
+      _messenger._workerToHostSendPort,
       paused: true,
     );
     final session = _AudioIsolateSession(initialMessage, isolate);
@@ -87,6 +87,10 @@ class AudioIsolate<TInitialMessage> {
     isolate.resume(isolate.pauseCapability!);
 
     return session.launchCompleter.future;
+  }
+
+  void setRequestHandler<TRequest extends TWorkerRequestPayload, TResponse>(AudioIsolateRequestHandler<TRequest, TResponse> handler) {
+    _messenger.setRequestHandler(handler);
   }
 
   Future<AudioIsolateShutdownResponse> attach() {
@@ -116,7 +120,7 @@ class AudioIsolate<TInitialMessage> {
     return session.shutdownCompleter.future;
   }
 
-  void _messengerListener(AudioIsolateWorkerMessage response) async {
+  void _messengerLifecycleListener(AudioIsolateWorkerMessage response) async {
     final session = _session;
     if (session == null) {
       throw StateError('Unexpected Audio Isolate State');
@@ -124,7 +128,7 @@ class AudioIsolate<TInitialMessage> {
 
     switch (response) {
       case AudioIsolateLaunchedResponse():
-        _messenger.attach(response.sendPort);
+        _messenger._attach(response.sendPort);
         response.sendPort.send(
           AudioIsolateRunRequest<TInitialMessage>(
             initialMessage: session.initialMessage,
@@ -134,10 +138,11 @@ class AudioIsolate<TInitialMessage> {
         session.launchCompleter.complete(response);
       case AudioIsolateShutdownResponse():
         _session = null;
-        _messenger.close();
+        final lastHandlers = Map<Type, AudioIsolateRequestHandler>.from(_messenger._handlers);
+        _messenger._close();
 
-        _messenger = AudioIsolateHostMessenger();
-        _messenger.message.listen(_messengerListener);
+        _messenger = AudioIsolateHostMessenger(handlers: lastHandlers);
+        _messenger._message.listen(_messengerLifecycleListener);
 
         if (response.exception != null && !session.launchCompleter.isCompleted) {
           session.launchCompleter.completeError(response.exception!, response.stackTrace!);
@@ -150,6 +155,7 @@ class AudioIsolate<TInitialMessage> {
         }
 
         session.shutdownCompleter.complete(response);
+      case AudioIsolateWorkerRequest():
       case AudioIsolateWorkerResponse():
         break;
     }

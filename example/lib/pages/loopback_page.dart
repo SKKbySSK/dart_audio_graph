@@ -19,7 +19,7 @@ class LoopbackPage extends StatefulWidget {
 }
 
 class _LoopbackPageState extends State<LoopbackPage> {
-  final loopbackIsolate = LoopbackIsolate();
+  final loopbackIsolate = LoopbackIsolateHost();
   Timer? _timer;
 
   var _isStarted = false;
@@ -55,9 +55,11 @@ class _LoopbackPageState extends State<LoopbackPage> {
     }
 
     await loopbackIsolate.launch(
-      backend: widget.audio.backend,
-      inputDeviceId: widget.audio.inputDevice?.id,
-      outputDeviceId: widget.audio.outputDevice?.id,
+      initialMessage: LoopbackInitialMessage(
+        backend: widget.audio.backend,
+        inputDeviceId: widget.audio.inputDevice?.id,
+        outputDeviceId: widget.audio.outputDevice?.id,
+      ),
     );
 
     _timer = Timer.periodic(

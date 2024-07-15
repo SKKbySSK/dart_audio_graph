@@ -1,7 +1,19 @@
-import 'dart:isolate';
+part of 'audio_isolate.dart';
 
 sealed class AudioIsolateWorkerMessage {
   const AudioIsolateWorkerMessage();
+}
+
+class AudioIsolateWorkerRequest<TPayload> extends AudioIsolateWorkerMessage {
+  static var _id = 0;
+
+  static int _getId() {
+    return _id++;
+  }
+
+  AudioIsolateWorkerRequest(this.payload) : id = _getId();
+  final int id;
+  final TPayload payload;
 }
 
 sealed class AudioIsolateWorkerResponse extends AudioIsolateWorkerMessage {

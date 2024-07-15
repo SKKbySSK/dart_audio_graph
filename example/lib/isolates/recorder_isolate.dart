@@ -3,8 +3,12 @@ import 'dart:io';
 import 'package:coast_audio/coast_audio.dart';
 import 'package:coast_audio/experimental.dart';
 
-class _RecorderMessage {
-  const _RecorderMessage({
+final class RecorderHostRequest {
+  const RecorderHostRequest();
+}
+
+class _RecorderInitialMessage {
+  const _RecorderInitialMessage({
     required this.backend,
     required this.inputDeviceId,
     required this.path,
@@ -17,7 +21,7 @@ class _RecorderMessage {
 /// A recorder isolate that captures audio from an input device and writes it to a wav file.
 class RecorderIsolate {
   RecorderIsolate();
-  final _isolate = AudioIsolate<_RecorderMessage>(_worker);
+  final _isolate = AudioIsolate<_RecorderInitialMessage, RecorderHostRequest>(_worker);
 
   bool get isLaunched => _isolate.isLaunched;
 
@@ -27,7 +31,7 @@ class RecorderIsolate {
     required String path,
   }) async {
     await _isolate.launch(
-      initialMessage: _RecorderMessage(
+      initialMessage: _RecorderInitialMessage(
         backend: backend,
         inputDeviceId: inputDeviceId,
         path: path,
@@ -40,10 +44,10 @@ class RecorderIsolate {
   }
 
   // The worker function that runs in the isolate.
-  static Future<void> _worker(dynamic initialMessage, AudioIsolateWorkerMessenger messenger) async {
+  static Future<void> _worker(_RecorderInitialMessage? initialMessage, AudioIsolateWorkerMessenger messenger) async {
     AudioResourceManager.isDisposeLogEnabled = true;
 
-    final message = initialMessage as _RecorderMessage;
+    final message = initialMessage as _RecorderInitialMessage;
 
     // Prepare the audio format and buffer, audio device and encoder.
     const format = AudioFormat(sampleRate: 48000, channels: 2, sampleFormat: SampleFormat.int16);

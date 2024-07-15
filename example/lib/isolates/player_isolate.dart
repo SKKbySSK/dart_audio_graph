@@ -65,8 +65,8 @@ class PlayerPositionResponse extends Equatable {
   List<Object?> get props => [position, duration];
 }
 
-class _PlayerMessage {
-  const _PlayerMessage({
+class _PlayerInitialMessage {
+  const _PlayerInitialMessage({
     required this.backend,
     required this.outputDeviceId,
     required this.path,
@@ -81,7 +81,7 @@ class _PlayerMessage {
 /// A player isolate that plays audio from a file or buffer.
 class PlayerIsolate {
   PlayerIsolate();
-  final _isolate = AudioIsolate<_PlayerMessage>(_worker);
+  final _isolate = AudioIsolate<_PlayerInitialMessage, PlayerHostRequest>(_worker);
 
   bool get isLaunched => _isolate.isLaunched;
 
@@ -92,7 +92,7 @@ class PlayerIsolate {
     required Uint8List? content,
   }) async {
     await _isolate.launch(
-      initialMessage: _PlayerMessage(
+      initialMessage: _PlayerInitialMessage(
         backend: backend,
         outputDeviceId: outputDeviceId,
         path: path,
@@ -134,10 +134,10 @@ class PlayerIsolate {
   }
 
   // The worker function used to initialize the audio player in the isolate
-  static Future<void> _worker(dynamic initialMessage, AudioIsolateWorkerMessenger messenger) async {
+  static Future<void> _worker(_PlayerInitialMessage? initialMessage, AudioIsolateWorkerMessenger<dynamic> messenger) async {
     AudioResourceManager.isDisposeLogEnabled = true;
 
-    final message = initialMessage as _PlayerMessage;
+    final message = initialMessage as _PlayerInitialMessage;
 
     // Initialize the audio player with the specified file or buffer
     final AudioInputDataSource dataSource;
@@ -153,23 +153,15 @@ class PlayerIsolate {
       deviceId: message.outputDeviceId,
     );
 
-    messenger.listenRequest<PlayerHostRequest>(
-      (request) {
-        switch (request) {
-          case PlayerHostRequestStart():
-            player.play();
-          case PlayerHostRequestPause():
-            player.pause();
-          case PlayerHostRequestSetVolume():
-            player.volume = request.volume;
-          case PlayerHostRequestSeek():
-            player.position = request.position;
-            return player.getPosition();
-          case PlayerHostRequestGetState():
-            return player.getState();
-          case PlayerHostRequestGetPosition():
-            return player.getPosition();
-        }
+    messenger.setRequestHandler<PlayerHostRequestStart, void>((_) => player.play());
+    messenger.setRequestHandler<PlayerHostRequestPause, void>((_) => player.pause());
+    messenger.setRequestHandler<PlayerHostRequestSetVolume, void>((r) => player.volume = r.volume);
+    messenger.setRequestHandler<PlayerHostRequestGetState, PlayerStateResponse>((r) => player.getState());
+    messenger.setRequestHandler<PlayerHostRequestGetPosition, PlayerPositionResponse>((r) => player.getPosition());
+    messenger.setRequestHandler<PlayerHostRequestSeek, PlayerPositionResponse>(
+      (r) {
+        player.position = r.position;
+        return player.getPosition();
       },
     );
 

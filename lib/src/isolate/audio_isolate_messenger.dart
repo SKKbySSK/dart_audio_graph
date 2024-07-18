@@ -115,6 +115,7 @@ class AudioIsolateWorkerMessenger<THostRequestPayload> {
   final _receivePort = ReceivePort();
   SendPort? _sendPort;
   final _handlers = <Type, AudioIsolateRequestHandler<THostRequestPayload, dynamic>>{};
+  final _configCompleter = Completer<void>();
 
   final _shutdownCompleter = Completer<AudioIsolateShutdownReason>();
 
@@ -136,6 +137,14 @@ class AudioIsolateWorkerMessenger<THostRequestPayload> {
 
   void setRequestHandler<TRequest extends THostRequestPayload, TResponse>(AudioIsolateRequestHandler<TRequest, TResponse> handler) {
     _handlers[TRequest] = (req) => handler(req as TRequest);
+  }
+
+  /// Completes the configuration of the worker.
+  /// This method should be called after all request handlers are set.
+  ///
+  /// Should be called only once.
+  void endConfiguration() {
+    _configCompleter.complete();
   }
 
   Future<TResponse> request<TRequest, TResponse>(TRequest payload) async {
@@ -179,6 +188,8 @@ class AudioIsolateWorkerMessenger<THostRequestPayload> {
     if (sendPort == null) {
       throw StateError('Messenger is not attached to an host');
     }
+
+    await _configCompleter.future;
 
     final handler = _handlers[request.payload.runtimeType];
     if (handler == null) {

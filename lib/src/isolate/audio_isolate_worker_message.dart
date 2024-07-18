@@ -40,8 +40,8 @@ class AudioIsolateWorkerFailedResponse extends AudioIsolateWorkerResponse {
 }
 
 final class AudioIsolateLaunchedResponse extends AudioIsolateWorkerMessage {
-  const AudioIsolateLaunchedResponse({required this.sendPort});
-  final SendPort sendPort;
+  const AudioIsolateLaunchedResponse({required SendPort sendPort}) : _sendPort = sendPort;
+  final SendPort _sendPort;
 }
 
 final class AudioIsolateShutdownResponse extends AudioIsolateWorkerMessage {

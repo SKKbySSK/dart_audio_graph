@@ -128,8 +128,8 @@ final class AudioIsolate<TInitialMessage, TWorkerRequestPayload> {
 
     switch (response) {
       case AudioIsolateLaunchedResponse():
-        _messenger._attach(response.sendPort);
-        response.sendPort.send(
+        _messenger._attach(response._sendPort);
+        response._sendPort.send(
           AudioIsolateRunRequest<TInitialMessage>(
             initialMessage: session.initialMessage,
             worker: _worker,

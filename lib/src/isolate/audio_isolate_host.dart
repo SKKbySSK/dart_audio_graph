@@ -57,6 +57,8 @@ Future<void> _audioIsolateWorkerEntryPoint<THostRequest, TWorkerRequest>(dynamic
   final worker = Function.apply(message.initializer, [messenger]) as AudioIsolateWorker;
 
   await worker.setup(message.workerInitialMessage);
+  messenger.endConfiguration();
+
   worker.run();
 
   await messenger.listenShutdown(

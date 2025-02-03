@@ -85,7 +85,21 @@ import CoastAudio // 1. Add import
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
+```
 
+You might have some issue while building and testing application on iOS Simulator.\
+Excluding unsupported architecture (x86_64) will resolve most issues.
+
+Add the single line of code to your project's `ios/Podfile`.
+
+```ruby
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'x86_64' // Add This Line
+    end
+  end
+end
 ```
 
 ### Linux

@@ -34,13 +34,13 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
 
 SPEC CHECKSUMS:
-  audio_session: 4f3e461722055d21515cf3261b64c973c062f345
+  audio_session: 9bb7f6c970f21241b19f5a3658097ae459681ba0
   CoastAudio: f4ae1af0ea72b87456806957447f15455e216d00
-  file_selector_ios: b6a6c6667913d571590169ef946afbafe3b52688
+  file_selector_ios: f92e583d43608aebc2e4a18daac30b8902845502
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
-  path_provider_foundation: 3784922295ac71e43754bd15e0653ccfd36a147c
-  permission_handler_apple: 036b856153a2b1f61f21030ff725f3e6fece2b78
+  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
 
-PODFILE CHECKSUM: 585c38fbfc422f7e3aaec9ea4bfbf338985b313b
+PODFILE CHECKSUM: 23fcdd4c409ed0d325b32ac88f8f07c6acabaa40
 
-COCOAPODS: 1.14.3
+COCOAPODS: 1.16.2

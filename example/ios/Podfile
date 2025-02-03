@@ -104,6 +104,9 @@ post_install do |installer|
         # 'PERMISSION_CRITICAL_ALERTS=1'
       ]
 
+      # Excluding Unsupported Architecture
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'x86_64'
+
     end
     # End of the permission_handler configuration
   end

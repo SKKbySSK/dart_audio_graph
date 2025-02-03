@@ -2,7 +2,7 @@ import UIKit
 import Flutter
 import CoastAudio
 
-@UIApplicationMain
+@main
 @objc class AppDelegate: FlutterAppDelegate {
   override func application(
     _ application: UIApplication,
